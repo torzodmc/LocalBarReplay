@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalBarReplay — TradingView Bar Replay Clone</title>
+  <meta name="description"
+    content="Local bar replay with Binance data, Forex, trading simulation, and TradingView-style charting.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <!-- ═══ TOP BAR ═══ -->
+  <header id="asset-panel">
+    <div class="panel-left">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2962ff" stroke-width="2.5">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+        <span>LocalBarReplay</span>
+      </div>
+      <div id="tabs" class="tab-group">
+        <button class="tab active" data-tab="crypto">Crypto</button>
+        <button class="tab" data-tab="forex">Forex</button>
+        <button class="tab" data-tab="csv">Load CSV</button>
+      </div>
+    </div>
+
+    <div id="tab-crypto" class="tab-content active">
+      <select id="crypto-symbol">
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="__custom__">Any Crypto…</option>
+      </select>
+      <input id="crypto-custom" type="text" placeholder="e.g. SOLUSDT" class="hidden" spellcheck="false">
+      <input id="crypto-date" type="date" title="Start replay from">
+      <button id="btn-fetch-binance" class="btn-primary">Fetch from Binance</button>
+      <button id="btn-download-csv" class="btn-secondary hidden" title="Download fetched data as CSV">⬇ CSV</button>
+    </div>
+
+    <div id="tab-forex" class="tab-content">
+      <select id="forex-symbol">
+        <option>EURUSD</option>
+        <option>USDJPY</option>
+        <option>GBPUSD</option>
+        <option>AUDUSD</option>
+        <option>USDCAD</option>
+        <option>USDCHF</option>
+        <option>NZDUSD</option>
+        <option>EURJPY</option>
+        <option>GBPJPY</option>
+        <option>EURGBP</option>
+        <option>AUDJPY</option>
+        <option>EURAUD</option>
+      </select>
+      <input id="forex-date" type="date" title="Start replay from">
+      <button id="btn-fetch-mt5" class="btn-primary">Fetch from MT5</button>
+    </div>
+
+    <div id="tab-csv" class="tab-content">
+      <label class="file-label">
+        <input id="csv-file" type="file" accept=".csv,.txt">
+        <span>Choose CSV file…</span>
+      </label>
+    </div>
+
+    <!-- Indicator Menu -->
+    <div class="ind-menu-wrap">
+      <button id="btn-indicators" class="btn-secondary">📊 Indicators</button>
+      <div id="ind-dropdown" class="ind-dropdown hidden">
+        <div class="ind-group">
+          <label class="ind-toggle"><input type="checkbox" data-ind="sma" checked> <b>SMA</b></label>
+          <div class="ind-sub">
+            <label><input type="checkbox" id="p-sma1-on" checked> Line 1: <input id="p-sma1" type="number" value="20"
+                min="1" class="ind-num"></label>
+            <label><input type="checkbox" id="p-sma2-on" checked> Line 2: <input id="p-sma2" type="number" value="50"
+                min="1" class="ind-num"></label>
+          </div>
+        </div>
+        <div class="ind-group">
+          <label class="ind-toggle"><input type="checkbox" data-ind="ema"> <b>EMA</b></label>
+          <div class="ind-sub">
+            <label><input type="checkbox" id="p-ema1-on" checked> Fast: <input id="p-ema1" type="number" value="12"
+                min="1" class="ind-num"></label>
+            <label><input type="checkbox" id="p-ema2-on" checked> Slow: <input id="p-ema2" type="number" value="26"
+                min="1" class="ind-num"></label>
+          </div>
+        </div>
+        <div class="ind-group">
+          <label class="ind-toggle"><input type="checkbox" data-ind="bb"> <b>Bollinger Bands</b></label>
+          <div class="ind-sub">
+            <label>Period: <input id="p-bb-period" type="number" value="20" min="1" class="ind-num"></label>
+            <label>Mult: <input id="p-bb-mult" type="number" value="2" min="0.1" step="0.1" class="ind-num"></label>
+          </div>
+        </div>
+        <div class="ind-group">
+          <label class="ind-toggle"><input type="checkbox" data-ind="rsi"> <b>RSI</b></label>
+          <div class="ind-sub">
+            <label>Period: <input id="p-rsi" type="number" value="14" min="1" class="ind-num"></label>
+          </div>
+        </div>
+        <div class="ind-group">
+          <label class="ind-toggle"><input type="checkbox" data-ind="macd"> <b>MACD</b></label>
+          <div class="ind-sub">
+            <label>Fast: <input id="p-macd-fast" type="number" value="12" min="1" class="ind-num"></label>
+            <label>Slow: <input id="p-macd-slow" type="number" value="26" min="1" class="ind-num"></label>
+            <label>Signal: <input id="p-macd-signal" type="number" value="9" min="1" class="ind-num"></label>
+          </div>
+        </div>
+        <div class="ind-group">
+          <label class="ind-toggle"><input type="checkbox" data-ind="vol" checked> <b>Volume</b></label>
+        </div>
+
+        <!-- PineScript custom indicators -->
+        <div class="ind-group pine-section">
+          <div class="pine-header">
+            <b>📝 Custom (PineScript)</b>
+            <button id="btn-pine-new" class="btn-pine-add" title="Add new PineScript indicator">+ Add</button>
+          </div>
+          <div id="pine-list"></div>
+        </div>
+
+        <div class="ind-footer">
+          <button id="ind-apply" class="btn-primary" style="width:100%">Apply Changes</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="status-bar" class="hidden"></div>
+
+  <!-- ═══ MAIN LAYOUT ═══ -->
+  <div id="main-layout">
+    <main id="chart-area">
+      <div id="chart-main"></div>
+      <div id="chart-rsi" class="sub-chart hidden"></div>
+      <div id="chart-macd" class="sub-chart hidden"></div>
+      <div id="chart-vol" class="sub-chart"></div>
+      <div id="watermark">LocalBarReplay</div>
+    </main>
+
+    <!-- Trading Panel -->
+    <aside id="trading-panel">
+      <div class="trade-section">
+        <h4>Trade</h4>
+        <div class="trade-type-tabs">
+          <button class="tt-tab active" data-side="buy">Buy / Long</button>
+          <button class="tt-tab" data-side="sell">Sell / Short</button>
+        </div>
+        <div class="trade-field">
+          <label>Size</label>
+          <div class="size-row">
+            <input id="trade-lots" type="number" step="0.01" min="0.01" value="0.1" placeholder="Lots">
+            <span class="size-or">or</span>
+            <input id="trade-usdt" type="number" step="1" min="1" placeholder="USDT $"
+              title="USDT amount — lots auto-calculated">
+          </div>
+        </div>
+        <div class="trade-field">
+          <label>Leverage</label>
+          <select id="trade-leverage">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="5">5×</option>
+            <option value="10" selected>10×</option>
+            <option value="20">20×</option>
+            <option value="50">50×</option>
+            <option value="100">100×</option>
+            <option value="125">125×</option>
+          </select>
+        </div>
+        <div class="trade-field">
+          <label>Take Profit</label>
+          <div class="pick-row">
+            <input id="trade-tp" type="number" step="any" placeholder="TP price">
+            <button id="btn-pick-tp" class="pick-btn" title="Click on chart to set TP">🎯</button>
+          </div>
+        </div>
+        <div class="trade-field">
+          <label>Stop Loss</label>
+          <div class="pick-row">
+            <input id="trade-sl" type="number" step="any" placeholder="SL price">
+            <button id="btn-pick-sl" class="pick-btn" title="Click on chart to set SL">🎯</button>
+          </div>
+        </div>
+        <div class="trade-actions">
+          <button id="btn-place-trade" class="btn-trade-buy">Place Buy</button>
+          <button id="btn-close-all" class="btn-secondary">Close All</button>
+        </div>
+      </div>
+
+      <div class="trade-section">
+        <h4>Open Positions</h4>
+        <div id="open-positions" class="positions-list">
+          <div class="empty-state">No open positions</div>
+        </div>
+      </div>
+
+      <div class="trade-section account-section">
+        <h4>Account</h4>
+        <div class="account-grid">
+          <div class="acct-item"><span class="acct-label">Balance</span><span id="acct-balance"
+              class="acct-value">$10,000.00</span></div>
+          <div class="acct-item"><span class="acct-label">Equity</span><span id="acct-equity"
+              class="acct-value">$10,000.00</span></div>
+          <div class="acct-item"><span class="acct-label">P&L</span><span id="acct-pnl" class="acct-value">$0.00</span>
+          </div>
+          <div class="acct-item"><span class="acct-label">Trades</span><span id="acct-trades"
+              class="acct-value">0</span></div>
+          <div class="acct-item"><span class="acct-label">Win%</span><span id="acct-winrate" class="acct-value">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="trade-section history-section">
+        <div class="history-header">
+          <h4>History</h4>
+          <button id="btn-detailed-history" class="btn-detail" title="View detailed trade history">📋 Details</button>
+        </div>
+        <div id="trade-history" class="positions-list">
+          <div class="empty-state">No closed trades</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══ REPLAY BAR ═══ -->
+  <footer id="replay-bar">
+    <div class="replay-controls">
+      <button id="btn-to-start" title="Go to start (Home)" class="ctrl-btn">⏮</button>
+      <button id="btn-step-back" title="Step back (←)" class="ctrl-btn">◀</button>
+      <button id="btn-play" title="Play / Pause (Space)" class="ctrl-btn play-btn">▶</button>
+      <button id="btn-step-fwd" title="Step forward (→)" class="ctrl-btn">▶</button>
+      <button id="btn-to-end" title="Go to end (End)" class="ctrl-btn">⏭</button>
+    </div>
+    <div class="tf-control">
+      <span class="label">TF</span>
+      <select id="timeframe">
+        <option value="5">5m</option>
+        <option value="15">15m</option>
+        <option value="30">30m</option>
+        <option value="60" selected>1h</option>
+        <option value="120">2h</option>
+        <option value="240">4h</option>
+        <option value="360">6h</option>
+        <option value="720">12h</option>
+        <option value="1440">1D</option>
+      </select>
+    </div>
+    <div class="speed-control">
+      <span class="label">Speed</span>
+      <input id="speed-slider" type="range" min="0.5" max="20" step="0.5" value="1">
+      <span id="speed-label">1×</span>
+    </div>
+    <div class="progress-wrap">
+      <input id="progress-bar" type="range" min="0" max="100" value="0">
+      <span id="bar-counter">0 / 0</span>
+    </div>
+    <div id="current-datetime" class="datetime-display">—</div>
+  </footer>
+
+  <!-- ═══ CSV Mapping Modal ═══ -->
+  <div id="csv-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Map CSV Columns</h3>
+      <p class="modal-hint">Preview of first 3 rows. Assign each column:</p>
+      <div id="csv-mapping-table"></div>
+      <div class="modal-actions">
+        <button id="csv-confirm" class="btn-primary">Load Data</button>
+        <button id="csv-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PineScript Editor Modal ═══ -->
+  <div id="pine-modal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <h3>📝 PineScript Indicator</h3>
+      <p class="modal-hint">Supported: ta.sma(), ta.ema(), ta.rsi(), plot(), close/open/high/low, input.int/float, basic
+        math.</p>
+      <div class="pine-editor-wrap">
+        <input id="pine-name" type="text" placeholder="Indicator name" style="width:100%; margin-bottom:8px">
+        <textarea id="pine-code" rows="12" placeholder="// Example: Custom SMA indicator
+myFast = ta.sma(close, 9)
+mySlow = ta.sma(close, 21)
+plot(myFast, title=&quot;Fast SMA&quot;, color=orange)
+plot(mySlow, title=&quot;Slow SMA&quot;, color=aqua)"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="pine-save" class="btn-primary">Save & Apply</button>
+        <button id="pine-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Detailed History Modal ═══ -->
+  <div id="detail-modal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <h3>📋 Detailed Trade History</h3>
+      <div id="detail-table-wrap"></div>
+      <div class="modal-actions">
+        <button id="detail-close" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Scripts ═══ -->
+  <script src="https://unpkg.com/lightweight-charts@5/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/aggregation.js"></script>
+  <script src="js/indicators.js"></script>
+  <script src="js/pinescript.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/trading.js"></script>
+  <script src="js/replay.js"></script>
+  <script src="js/bridge.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
