@@ -107,6 +107,14 @@
         if (rawBaseData && rawBaseData.length) ReplayEngine.switchTimeframe(parseInt(tfSelect.value));
     });
 
+    // ─── Open-Only Toggle ───
+    const btnOpenOnly = document.getElementById('btn-open-only');
+    btnOpenOnly.addEventListener('click', () => {
+        ReplayEngine.openOnly = !ReplayEngine.openOnly;
+        btnOpenOnly.classList.toggle('ctrl-active', ReplayEngine.openOnly);
+        ReplayEngine._renderFrame(false);
+    });
+
     // ─── Forex MT5 ───
     btnMT5.addEventListener('click', () => {
         currentSymbol = forexSymbol.value;

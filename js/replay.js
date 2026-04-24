@@ -7,7 +7,8 @@ const ReplayEngine = {
     isPlaying: false,
     speed: 1,
     _timer: null,
-    _userScrolled: false, // tracks if user has manually scrolled
+    _userScrolled: false,
+    openOnly: false, // When true, show only the open price of the current candle
     indicatorState: { sma: true, ema: false, bb: false, rsi: false, macd: false, vol: true },
 
     dom: {},
@@ -152,6 +153,16 @@ const ReplayEngine = {
         if (this.replayIndex < 0) this.replayIndex = 0;
 
         const visible = allAgg.slice(0, this.replayIndex + 1);
+
+        // Open-only mode: flatten the current (last) candle to just its open price
+        if (this.openOnly && visible.length > 0) {
+            const last = { ...visible[visible.length - 1] };
+            last.high = last.open;
+            last.low = last.open;
+            last.close = last.open;
+            visible[visible.length - 1] = last;
+        }
+
         ChartManager.updateData(visible, this.indicatorState);
 
         // Only force-fit on explicit jumps (load, TF switch, go-to-start/end)
@@ -184,7 +195,8 @@ const ReplayEngine = {
     getCurrentPrice() {
         const allAgg = this._getAgg();
         const c = allAgg[this.replayIndex];
-        return c ? c.close : 0;
+        if (!c) return 0;
+        return this.openOnly ? c.open : c.close;
     },
 
     updateIndicators(state) {

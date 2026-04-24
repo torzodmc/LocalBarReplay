@@ -20,6 +20,7 @@ There's no build step. Open `index.html` in a browser and you're good to go.
 - Play, pause, step forward/back, scrub to any point
 - Speed control from 0.5x to 20x
 - Switch timeframes (5m to 1D) mid-replay without losing your position
+- Open-only mode: toggle the **O** button to see only the candle's opening price before it plays out
 
 **Trading Simulation**
 - Market orders with configurable lot size or USDT amount

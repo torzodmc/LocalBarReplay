@@ -865,6 +865,12 @@ input[type="number"]::-webkit-inner-spin-button {
   border-color: var(--red);
 }
 
+.ctrl-active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+
 .tf-control {
   display: flex;
   align-items: center;
