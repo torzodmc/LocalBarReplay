@@ -57,8 +57,8 @@
     }
     function hideStatus() { statusBar.classList.add('hidden'); }
     function setDefaultDates() {
-        const d = new Date(); d.setDate(d.getDate() - 30);
-        const iso = d.toISOString().split('T')[0];
+        const saved = localStorage.getItem('lbr_start_date');
+        const iso = saved || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]; })();
         cryptoDate.value = iso; forexDate.value = iso;
     }
 
@@ -91,7 +91,7 @@
             showStatus(`Fetching ${symbol} from Binance…`);
             rawBaseData = await fetchAllBinanceData(symbol, startDate, showStatus);
             if (!rawBaseData.length) { showStatus('No data returned.', 'error'); btnFetch.disabled = false; return; }
-            downloadCSV(rawBaseData, `${symbol}_5m_${startDate}.csv`);
+            localStorage.setItem('lbr_start_date', startDate);
             showStatus(`✓ ${rawBaseData.length} bars loaded.`, 'success');
             btnDownload.classList.remove('hidden');
             btnDownload.onclick = () => downloadCSV(rawBaseData, `${symbol}_5m.csv`);
@@ -203,6 +203,8 @@
     function applyIndicators() {
         ChartManager.params = readIndicatorParams();
         ReplayEngine.indicatorState = readIndicatorState();
+        localStorage.setItem('lbr_ind_state', JSON.stringify(ReplayEngine.indicatorState));
+        localStorage.setItem('lbr_ind_params', JSON.stringify(ChartManager.params));
         ReplayEngine._renderFrame(false);
     }
 
@@ -390,9 +392,37 @@
         setTimeout(() => ReplayEngine.play(), 300);
     }
 
+    // ─── Restore saved indicator preferences ───
+    function restoreIndicatorPrefs() {
+        try {
+            const savedState = JSON.parse(localStorage.getItem('lbr_ind_state'));
+            const savedParams = JSON.parse(localStorage.getItem('lbr_ind_params'));
+            if (savedState) {
+                indicatorChecks.forEach(c => { if (savedState[c.dataset.ind] !== undefined) c.checked = savedState[c.dataset.ind]; });
+            }
+            if (savedParams) {
+                if ($('#p-sma1')) $('#p-sma1').value = savedParams.sma1 || 20;
+                if ($('#p-sma2')) $('#p-sma2').value = savedParams.sma2 || 50;
+                if ($('#p-sma1-on')) $('#p-sma1-on').checked = savedParams.sma1On !== false;
+                if ($('#p-sma2-on')) $('#p-sma2-on').checked = savedParams.sma2On !== false;
+                if ($('#p-ema1')) $('#p-ema1').value = savedParams.ema1 || 12;
+                if ($('#p-ema2')) $('#p-ema2').value = savedParams.ema2 || 26;
+                if ($('#p-ema1-on')) $('#p-ema1-on').checked = savedParams.ema1On !== false;
+                if ($('#p-ema2-on')) $('#p-ema2-on').checked = savedParams.ema2On !== false;
+                if ($('#p-bb-period')) $('#p-bb-period').value = savedParams.bbPeriod || 20;
+                if ($('#p-bb-mult')) $('#p-bb-mult').value = savedParams.bbMult || 2;
+                if ($('#p-rsi')) $('#p-rsi').value = savedParams.rsiPeriod || 14;
+                if ($('#p-macd-fast')) $('#p-macd-fast').value = savedParams.macdFast || 12;
+                if ($('#p-macd-slow')) $('#p-macd-slow').value = savedParams.macdSlow || 26;
+                if ($('#p-macd-signal')) $('#p-macd-signal').value = savedParams.macdSignal || 9;
+            }
+        } catch (e) { }
+    }
+
     // ─── Boot ───
     function boot() {
         setDefaultDates();
+        restoreIndicatorPrefs();
         PineEngine.init();
         ChartManager.init();
         ReplayEngine.init();
