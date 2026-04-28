@@ -170,17 +170,19 @@ const ReplayEngine = {
             ChartManager.mainChart.timeScale().fitContent();
         }
 
-        // Trading engine: check TP/SL on latest candle
-        const currentCandle = allAgg[this.replayIndex];
-        if (currentCandle && TradingEngine.positions.length > 0) {
-            TradingEngine.onTick(currentCandle);
+        // Use the visible (possibly open-flattened) candle for trading + UI
+        const displayCandle = visible.length > 0 ? visible[visible.length - 1] : null;
+
+        // Trading engine: check TP/SL on the displayed candle
+        if (displayCandle && TradingEngine.positions.length > 0) {
+            TradingEngine.onTick(displayCandle);
         }
 
         // Update position lines on chart
-        ChartManager.updatePositionLines(TradingEngine.positions, currentCandle ? currentCandle.close : 0);
+        ChartManager.updatePositionLines(TradingEngine.positions, displayCandle ? displayCandle.close : 0);
 
         // Emit candle to bridge (if connected)
-        if (currentCandle && typeof BridgeClient !== 'undefined') BridgeClient.emitCandle(currentCandle);
+        if (displayCandle && typeof BridgeClient !== 'undefined') BridgeClient.emitCandle(displayCandle);
 
         // Update UI controls
         const pct = total > 1 ? Math.round((this.replayIndex / (total - 1)) * 100) : 0;

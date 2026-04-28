@@ -37,8 +37,9 @@ const TradingEngine = {
             tp: tp || null, sl: sl || null,
             symbol: symbol || '',
             openTime: Date.now(),
+            openReplayIndex: ReplayEngine.replayIndex, // track which candle it was opened on
             pnl: 0,
-            entryEMA: emaSnap, // { ema1, ema2, ema1Period, ema2Period }
+            entryEMA: emaSnap,
         };
         this.positions.push(pos);
         this.updateUI();
@@ -49,16 +50,23 @@ const TradingEngine = {
         const idx = this.positions.findIndex(p => p.id === id);
         if (idx === -1) return;
         const pos = this.positions[idx];
-        pos.pnl = this.calcPnL(pos, exitPrice);
-        pos.exitPrice = exitPrice;
-        pos.closeTime = Date.now();
 
-        // Snapshot EMA at close
-        const candles = ChartManager._lastCandles;
-        pos.exitEMA = ChartManager.getEMASnapshot(candles);
+        // If closed on the same candle it was opened — treat as cancelled, skip history
+        const isCancelled = pos.openReplayIndex === ReplayEngine.replayIndex;
 
-        this.balance += pos.pnl;
-        this.history.push({ ...pos });
+        if (!isCancelled) {
+            pos.pnl = this.calcPnL(pos, exitPrice);
+            pos.exitPrice = exitPrice;
+            pos.closeTime = Date.now();
+
+            // Snapshot EMA at close
+            const candles = ChartManager._lastCandles;
+            pos.exitEMA = ChartManager.getEMASnapshot(candles);
+
+            this.balance += pos.pnl;
+            this.history.push({ ...pos });
+        }
+
         this.positions.splice(idx, 1);
         this.updateUI();
     },
