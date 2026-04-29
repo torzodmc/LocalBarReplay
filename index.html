@@ -219,7 +219,7 @@
       <div class="trade-section history-section">
         <div class="history-header">
           <h4>History</h4>
-          <button id="btn-detailed-history" class="btn-detail" title="View detailed trade history">📋 Details</button>
+          <button id="btn-export-history" class="btn-detail" title="Download all trades as JSON">⬇ Export</button>
         </div>
         <div id="trade-history" class="positions-list">
           <div class="empty-state">No closed trades</div>
@@ -298,14 +298,14 @@ plot(mySlow, title=&quot;Slow SMA&quot;, color=aqua)"></textarea>
     </div>
   </div>
 
-  <!-- ═══ Detailed History Modal ═══ -->
-  <div id="detail-modal" class="modal hidden">
+  <!-- ═══ Per-Trade Context Detail Modal ═══ -->
+  <div id="trade-detail-modal" class="modal hidden">
     <div class="modal-content modal-wide">
-      <h3>📋 Detailed Trade History</h3>
-      <div id="detail-table-wrap"></div>
-      <div class="modal-actions">
-        <button id="detail-close" class="btn-secondary">Close</button>
+      <div class="modal-header">
+        <h3>Trade Details</h3>
+        <button id="btn-close-detail-modal" class="modal-x">✕</button>
       </div>
+      <div id="trade-detail-body" class="trade-detail-body"></div>
     </div>
   </div>
 
@@ -318,6 +318,7 @@ plot(mySlow, title=&quot;Slow SMA&quot;, color=aqua)"></textarea>
   <script src="js/pinescript.js"></script>
   <script src="js/chart.js"></script>
   <script src="js/trading.js"></script>
+  <script src="js/tradeaddons.js"></script>
   <script src="js/replay.js"></script>
   <script src="js/bridge.js"></script>
   <script src="js/app.js"></script>

@@ -179,4 +179,50 @@ const Indicators = {
             color: d.close >= d.open ? 'rgba(38,166,154,0.5)' : 'rgba(239,83,80,0.5)',
         }));
     },
+
+    /**
+     * Average True Range
+     */
+    atr(data, period = 14) {
+        const result = [];
+        if (data.length < 2) return data.map(d => ({ time: d.time, value: NaN }));
+        const trs = [{ time: data[0].time, value: data[0].high - data[0].low }];
+        for (let i = 1; i < data.length; i++) {
+            const tr = Math.max(
+                data[i].high - data[i].low,
+                Math.abs(data[i].high - data[i - 1].close),
+                Math.abs(data[i].low - data[i - 1].close)
+            );
+            trs.push({ time: data[i].time, value: tr });
+        }
+        // RMA (Wilder's smoothing)
+        let avg = 0;
+        for (let i = 0; i < data.length; i++) {
+            if (i < period) {
+                avg += trs[i].value;
+                if (i === period - 1) { avg /= period; result.push({ time: data[i].time, value: avg }); }
+                else result.push({ time: data[i].time, value: NaN });
+            } else {
+                avg = (avg * (period - 1) + trs[i].value) / period;
+                result.push({ time: data[i].time, value: avg });
+            }
+        }
+        return result;
+    },
+
+    /** Get the last valid (non-NaN) value from an indicator result array */
+    lastValue(arr) {
+        if (!arr || arr.length === 0) return null;
+        for (let i = arr.length - 1; i >= 0; i--) {
+            if (arr[i] && !isNaN(arr[i].value)) return arr[i].value;
+        }
+        return null;
+    },
+
+    /** Get value at a specific index */
+    valueAt(arr, idx) {
+        if (!arr || idx < 0 || idx >= arr.length) return null;
+        const v = arr[idx].value;
+        return isNaN(v) ? null : v;
+    },
 };

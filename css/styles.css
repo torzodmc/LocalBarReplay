@@ -1207,3 +1207,193 @@ input[type="range"]::-webkit-slider-thumb {
 #bridge-custom-panel {
   padding: 0 12px 8px;
 }
+
+/* ═══ UPDATED HISTORY CARDS ═══ */
+.history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 5px;
+  font-size: 11px;
+  border-left: 3px solid transparent;
+}
+
+.hist-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hist-time {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hist-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+.hist-meta .positive {
+  color: var(--green);
+}
+
+.hist-meta .negative {
+  color: var(--red);
+}
+
+.hist-pnl {
+  font-weight: 700;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.hist-detail-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: var(--font);
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all .12s;
+}
+
+.hist-detail-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ═══ TRADE DETAIL MODAL ═══ */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.modal-header h3 {
+  margin-bottom: 0;
+}
+
+.modal-x {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  transition: all .12s;
+}
+
+.modal-x:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.trade-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-section {
+  background: var(--bg-input);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.detail-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+}
+
+.ctx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.ctx-table tr:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.ctx-label {
+  color: var(--text-dim);
+  padding: 5px 10px;
+  width: 55%;
+  font-size: 11px;
+}
+
+.ctx-val {
+  color: var(--text);
+  padding: 5px 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-toggle-row {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.detail-toggle-btn {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 7px 0;
+  border-radius: 5px;
+  font-family: var(--font);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.detail-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.detail-export-single-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 7px 12px;
+  border-radius: 5px;
+  font-family: var(--font);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
+}
+
+.detail-export-single-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}

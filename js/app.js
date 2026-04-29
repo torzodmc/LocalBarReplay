@@ -45,11 +45,10 @@
     const btnPineNew = $('#btn-pine-new');
     const pineList = $('#pine-list');
 
-    // Detail History
-    const detailModal = $('#detail-modal');
-    const detailTableWrap = $('#detail-table-wrap');
-    const btnDetailHistory = $('#btn-detailed-history');
-    const detailClose = $('#detail-close');
+    // Detail Modal
+    const tradeDetailModal = $('#trade-detail-modal');
+    const btnCloseDetailModal = $('#btn-close-detail-modal');
+    const btnExportHistory = $('#btn-export-history');
 
     // ─── State ───
     let rawBaseData = null, csvParsedData = null;
@@ -374,46 +373,21 @@
         ReplayEngine._renderFrame(false);
     });
 
-    // ─── Detailed History Modal ───
-    btnDetailHistory.addEventListener('click', () => {
-        const trades = TradingEngine.getFullHistory();
-        if (!trades.length) { alert('No trade history yet'); return; }
+    // ─── Per-trade context detail modal ───
+    // Close modal
+    btnCloseDetailModal.addEventListener('click', () => tradeDetailModal.classList.add('hidden'));
+    tradeDetailModal.addEventListener('click', (e) => { if (e.target === tradeDetailModal) tradeDetailModal.classList.add('hidden'); });
 
-        let html = `<table class="detail-table">
-      <thead><tr>
-        <th>#</th><th>Side</th><th>Symbol</th><th>Lots</th><th>Lev</th>
-        <th>Entry</th><th>Exit</th><th>TP</th><th>SL</th>
-        <th>P&L</th><th>EMA at Entry</th><th>EMA at Close</th>
-      </tr></thead><tbody>`;
-
-        trades.forEach((t, i) => {
-            const pnlClass = t.pnl >= 0 ? 'dt-win' : 'dt-loss';
-            const fmtPnl = (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toFixed(2);
-            const fmtEMA = (ema) => {
-                if (!ema || (!ema.ema1 && !ema.ema2)) return '—';
-                const parts = [];
-                if (ema.ema1 !== null) parts.push(`${ema.ema1Period}: ${ema.ema1.toFixed(2)}`);
-                if (ema.ema2 !== null) parts.push(`${ema.ema2Period}: ${ema.ema2.toFixed(2)}`);
-                return parts.join('<br>');
-            };
-            html += `<tr>
-        <td>${i + 1}</td>
-        <td class="${t.side === 'buy' ? 'dt-win' : 'dt-loss'}">${t.side.toUpperCase()}</td>
-        <td>${t.symbol}</td><td>${t.lots.toFixed(3)}</td><td>${t.leverage}×</td>
-        <td>${t.entryPrice}</td><td>${t.exitPrice}</td>
-        <td>${t.tp}</td><td>${t.sl}</td>
-        <td class="${pnlClass}">${fmtPnl}</td>
-        <td class="dt-ema">${fmtEMA(t.entryEMA)}</td>
-        <td class="dt-ema">${fmtEMA(t.exitEMA)}</td>
-      </tr>`;
-        });
-
-        html += '</tbody></table>';
-        detailTableWrap.innerHTML = html;
-        detailModal.classList.remove('hidden');
+    // Click on a "Details ▸" button in the history list
+    document.getElementById('trade-history').addEventListener('click', (e) => {
+        const btn = e.target.closest('.hist-detail-btn');
+        if (!btn) return;
+        const idx = parseInt(btn.dataset.histIdx);
+        if (!isNaN(idx)) TradingEngine.renderDetailModal(idx);
     });
 
-    detailClose.addEventListener('click', () => detailModal.classList.add('hidden'));
+    // ─── Export all trades as JSON ───
+    btnExportHistory.addEventListener('click', () => TradingEngine.downloadHistoryJSON());
 
     // ─── Start Replay ───
     function startReplay(data, tf) {
