@@ -11,10 +11,17 @@
     const statusBar = $('#status-bar');
     const cryptoSymbol = $('#crypto-symbol'), cryptoCustom = $('#crypto-custom');
     const cryptoDate = $('#crypto-date'), tfSelect = $('#timeframe');
-    const btnFetch = $('#btn-fetch-binance'), btnDownload = $('#btn-download-csv');
+    const btnFetch = $('#btn-fetch-binance'), btnDownload = $('#btn-download-csv'), btnClearCache = $('#btn-clear-cache');
     const forexSymbol = $('#forex-symbol'), forexDate = $('#forex-date');
     const btnMT5 = $('#btn-fetch-mt5');
     const csvFile = $('#csv-file');
+
+    // ─── Clear Cache ───
+    btnClearCache.addEventListener('click', async () => {
+        if (!confirm('Delete all cached historical data? You will need to re-fetch.')) return;
+        await clearAllCandles();
+        alert('Cache cleared.');
+    });
     const csvModal = $('#csv-modal'), csvMappingTable = $('#csv-mapping-table');
     const csvConfirm = $('#csv-confirm'), csvCancel = $('#csv-cancel');
 
@@ -87,18 +94,40 @@
         if (!startDate) { alert('Select a start date'); return; }
         currentSymbol = symbol;
         btnFetch.disabled = true;
+        let earlyStarted = false;
         try {
             showStatus(`Fetching ${symbol} from Binance…`);
-            rawBaseData = await fetchAllBinanceData(symbol, startDate, showStatus);
-            if (!rawBaseData.length) { showStatus('No data returned.', 'error'); btnFetch.disabled = false; return; }
+            rawBaseData = await fetchAllBinanceData(symbol, startDate, showStatus, (partialData, isFinal) => {
+                if (!earlyStarted && !isFinal) {
+                    // First chunk — start replay immediately
+                    earlyStarted = true;
+                    TradingEngine.setAssetType('crypto');
+                    TradingEngine.reset();
+                    rawBaseData = partialData;
+                    startReplay(partialData, parseInt(tfSelect.value));
+                    showStatus(`Playing with ${partialData.length} bars… still fetching more in background`);
+                } else if (isFinal) {
+                    // Background fetch finished — silently extend the data
+                    rawBaseData = partialData;
+                    ReplayEngine.baseData = partialData;
+                    showStatus(`✓ ${partialData.length} bars fully loaded.`, 'success');
+                    setTimeout(hideStatus, 3000);
+                }
+            });
             localStorage.setItem('lbr_start_date', startDate);
-            showStatus(`✓ ${rawBaseData.length} bars loaded.`, 'success');
+
+            if (!earlyStarted) {
+                // Short date range — no progressive load happened, start normally
+                if (!rawBaseData.length) { showStatus('No data returned.', 'error'); btnFetch.disabled = false; return; }
+                showStatus(`✓ ${rawBaseData.length} bars loaded.`, 'success');
+                TradingEngine.setAssetType('crypto');
+                TradingEngine.reset();
+                startReplay(rawBaseData, parseInt(tfSelect.value));
+                setTimeout(hideStatus, 3000);
+            }
+
             btnDownload.classList.remove('hidden');
             btnDownload.onclick = () => downloadCSV(rawBaseData, `${symbol}_5m.csv`);
-            TradingEngine.setAssetType('crypto');
-            TradingEngine.reset();
-            startReplay(rawBaseData, parseInt(tfSelect.value));
-            setTimeout(hideStatus, 3000);
         } catch (err) { showStatus('Error: ' + err.message, 'error'); console.error(err); }
         btnFetch.disabled = false;
     });

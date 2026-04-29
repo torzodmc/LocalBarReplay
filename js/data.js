@@ -76,15 +76,21 @@ function mergeData(existing, newData) {
 /**
  * Auto-paginated fetch of all 5m klines from startDate to now.
  * Checks cache first; merges if existing data is found.
+ *
+ * @param {string} symbol
+ * @param {string} startDate   ISO date string
+ * @param {Function} onProgress   status callback
+ * @param {Function} [onEarlyData]  called with partial data once we have ~30 days worth,
+ *                                  so replay can start while background fetch continues.
+ *                                  Also called with final complete data at the end.
  */
-async function fetchAllBinanceData(symbol, startDate, onProgress) {
+async function fetchAllBinanceData(symbol, startDate, onProgress, onEarlyData) {
     // Check cache
     if (onProgress) onProgress('Checking local cache…');
     const cached = await checkCache(symbol, startDate);
 
     let startTime;
     if (cached && cached.length > 0) {
-        // We have some cached data — only fetch what's new
         const lastCachedTime = cached[cached.length - 1].time * 1000;
         startTime = lastCachedTime + 1;
         if (onProgress) onProgress(`Found ${cached.length} cached bars. Fetching updates…`);
@@ -93,8 +99,16 @@ async function fetchAllBinanceData(symbol, startDate, onProgress) {
     }
 
     const endTime = Date.now();
+
+    // If date range <= 30 days, no progressive loading needed
+    const rangeMs = endTime - new Date(startDate).getTime();
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    const MIN_BARS_EARLY = 8640; // 30 days of 5m candles
+    const needsProgressiveLoad = rangeMs > THIRTY_DAYS_MS && onEarlyData;
+
     const allBars = [];
     let page = 0;
+    let earlyFired = false;
 
     while (startTime < endTime) {
         page++;
@@ -111,6 +125,23 @@ async function fetchAllBinanceData(symbol, startDate, onProgress) {
             });
         }
         startTime = raw[raw.length - 1][0] + 1;
+
+        // Progressive load: fire early once we have enough data
+        if (needsProgressiveLoad && !earlyFired) {
+            const totalSoFar = (cached ? cached.length : 0) + allBars.length;
+            if (totalSoFar >= MIN_BARS_EARLY) {
+                earlyFired = true;
+                let earlyResult;
+                if (cached && cached.length > 0) {
+                    earlyResult = mergeData(cached, allBars);
+                } else {
+                    earlyResult = [...allBars];
+                    earlyResult.sort((a, b) => a.time - b.time);
+                }
+                onEarlyData(earlyResult, false); // false = not final
+            }
+        }
+
         if (raw.length === 1000) {
             await new Promise(r => setTimeout(r, 120));
         } else break;
@@ -121,7 +152,6 @@ async function fetchAllBinanceData(symbol, startDate, onProgress) {
     if (cached && cached.length > 0) {
         result = mergeData(cached, allBars);
     } else {
-        // Deduplicate
         const seen = new Set();
         result = [];
         for (const bar of allBars) {
@@ -130,9 +160,14 @@ async function fetchAllBinanceData(symbol, startDate, onProgress) {
         result.sort((a, b) => a.time - b.time);
     }
 
-    // Save merged result to cache under both the original key and the new key
+    // Save to cache
     const key = cacheKey(symbol, startDate);
     await saveToIDB(key, result);
+
+    // Fire final data update
+    if (onEarlyData && earlyFired) {
+        onEarlyData(result, true); // true = final
+    }
 
     return result;
 }
