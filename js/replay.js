@@ -188,8 +188,8 @@ const ReplayEngine = {
         const pct = total > 1 ? Math.round((this.replayIndex / (total - 1)) * 100) : 0;
         this.dom.progressBar.value = pct;
         this.dom.barCounter.textContent = `${this.replayIndex + 1} / ${total}`;
-        if (currentCandle) {
-            const dt = new Date(currentCandle.time * 1000);
+        if (displayCandle) {
+            const dt = new Date(displayCandle.time * 1000);
             this.dom.datetime.textContent = dt.toISOString().replace('T', ' ').substring(0, 19);
         }
     },
