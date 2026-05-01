@@ -452,11 +452,10 @@
     function _unloadAddon(path) {
         const script = _loadedAddonScripts[path];
         if (script) { script.remove(); delete _loadedAddonScripts[path]; }
-        // Remove from manager (page reload truly clears it, but unregister for current session)
+        // Unregister from manager (fires onDeactivate hooks)
         if (typeof TradeAddonManager !== 'undefined') {
-            TradeAddonManager._addons = TradeAddonManager._addons.filter(
-                a => !a._sourcePath || !String(a._sourcePath).includes(path.split('/').pop())
-            );
+            const filename = path.split('/').pop();
+            TradeAddonManager.unregister(a => a._sourcePath && String(a._sourcePath).includes(filename));
         }
     }
 

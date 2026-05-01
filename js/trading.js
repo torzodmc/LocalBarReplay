@@ -31,6 +31,16 @@ const TradingEngine = {
     openPosition(side, lots, leverage, entryPrice, tp, sl, symbol) {
         const candles = ChartManager._lastCandles || [];
 
+        // Check if any addon wants to block this trade
+        if (typeof TradeAddonManager !== 'undefined') {
+            const blockResult = TradeAddonManager.onBeforeTrade(candles, entryPrice, { side, lots, leverage, tp, sl, symbol });
+            if (blockResult !== true) {
+                const reason = typeof blockResult === 'string' ? blockResult : 'Trade blocked by addon';
+                console.warn('[TradingEngine]', reason);
+                return null;
+            }
+        }
+
         const pos = {
             id: this.nextId++, side, lots, leverage, entryPrice,
             tp: tp || null, sl: sl || null,
@@ -139,6 +149,13 @@ const TradingEngine = {
             if (pos.pnl > pos._maxPnl) pos._maxPnl = pos.pnl;
             if (pos.pnl < pos._minPnl) pos._minPnl = pos.pnl;
         }
+
+        // Addon per-tick hooks (drawdown checks, prop firm rules, etc.)
+        if (typeof TradeAddonManager !== 'undefined') {
+            const equity = this.balance + this.positions.reduce((s, p) => s + p.pnl, 0);
+            TradeAddonManager.onEveryTick(candle, equity, this.balance);
+        }
+
         if (this.positions.length > 0 || closed.length > 0) this.updateUI();
         return closed;
     },

@@ -394,6 +394,184 @@ input[type="number"]::-webkit-inner-spin-button {
   opacity: 0.7;
 }
 
+/* ═══ PROP FIRM HUD ═══ */
+.pf-setup {
+  padding: 10px 0;
+}
+
+.pf-setup-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.pf-setup-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.pf-setup-label select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+#prop-firm-hud {
+  padding: 6px 0;
+}
+
+.pf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.pf-header.pf-active {
+  background: rgba(41, 98, 255, 0.12);
+  border: 1px solid rgba(41, 98, 255, 0.3);
+}
+
+.pf-header.pf-funded {
+  background: rgba(38, 166, 154, 0.12);
+  border: 1px solid rgba(38, 166, 154, 0.3);
+}
+
+.pf-header.pf-failed {
+  background: rgba(239, 83, 80, 0.12);
+  border: 1px solid rgba(239, 83, 80, 0.3);
+}
+
+.pf-plan-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pf-phase-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+.pf-balance {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 10px;
+  letter-spacing: -0.3px;
+}
+
+.pf-stat {
+  margin-bottom: 7px;
+}
+
+.pf-stat-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+
+.pf-stat-label span {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pf-bar {
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pf-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.15s ease;
+}
+
+.pf-bar-green {
+  background: linear-gradient(90deg, #26a69a, #4caf50);
+}
+
+.pf-bar-dd {
+  background: linear-gradient(90deg, #ff9800, #f57c00);
+}
+
+.pf-bar-danger {
+  background: linear-gradient(90deg, #ef5350, #d32f2f) !important;
+}
+
+.pf-days {
+  display: flex;
+  gap: 5px;
+  padding: 3px 0;
+}
+
+.pf-day-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.pf-day-dot.filled {
+  background: #26a69a;
+  border-color: #26a69a;
+  box-shadow: 0 0 6px rgba(38, 166, 154, 0.4);
+}
+
+.pf-breach-reason {
+  font-size: 11px;
+  color: #ef5350;
+  padding: 8px;
+  background: rgba(239, 83, 80, 0.08);
+  border-radius: 5px;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.pf-restart-btn {
+  width: 100%;
+  padding: 7px;
+  background: rgba(41, 98, 255, 0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.pf-restart-btn:hover {
+  background: rgba(41, 98, 255, 0.3);
+}
+
+/* Hide normal account stats when prop firm is active */
+body.prop-firm-active .acct-row {
+  display: none;
+}
+
 /* ═══ STATUS BAR ═══ */
 #status-bar {
   padding: 8px 16px;

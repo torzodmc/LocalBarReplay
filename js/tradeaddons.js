@@ -6,7 +6,15 @@
  * How to use:
  *   1. Create a .js file that calls LocalBarReplay.registerTradeAddon({ ... })
  *   2. Add a <script src="addons/your_addon.js"></script> to index.html
- *   3. The addon's onTradeOpen / onTradeClose hooks fire automatically
+ *   3. The addon's hooks fire automatically
+ *
+ * Available hooks:
+ *   onTradeOpen(ctx)                    — record data when trade opens
+ *   onTradeClose(ctx, openData)         — record data when trade closes
+ *   onBeforeTrade(ctx, pos)             — return false to BLOCK a trade
+ *   onEveryTick(candle, equity, balance) — called every replay frame
+ *   onActivate()                        — called when addon is enabled
+ *   onDeactivate()                      — called when addon is disabled
  *
  * ═══════════════════════════════════════════════════════ */
 
@@ -18,6 +26,31 @@ const TradeAddonManager = {
         if (!config || !config.name) { console.warn('[TradeAddonManager] Addon must have a name.'); return; }
         console.log(`[TradeAddonManager] Addon loaded: "${config.name}"`);
         this._addons.push(config);
+        // Fire onActivate if the addon defines it
+        if (typeof config.onActivate === 'function') {
+            try { config.onActivate(); } catch (e) {
+                console.error(`[TradeAddonManager] "${config.name}" onActivate error:`, e);
+            }
+        }
+    },
+
+    /** Unregister an addon by matching source path. */
+    unregister(matchFn) {
+        const removed = [];
+        this._addons = this._addons.filter(a => {
+            if (matchFn(a)) {
+                // Fire onDeactivate
+                if (typeof a.onDeactivate === 'function') {
+                    try { a.onDeactivate(); } catch (e) {
+                        console.error(`[TradeAddonManager] "${a.name}" onDeactivate error:`, e);
+                    }
+                }
+                removed.push(a.name);
+                return false;
+            }
+            return true;
+        });
+        if (removed.length) console.log(`[TradeAddonManager] Unloaded: ${removed.join(', ')}`);
     },
 
     /** Build the context (ctx) object passed to addon hooks. */
@@ -112,6 +145,43 @@ const TradeAddonManager = {
             }
         }
         return result;
+    },
+
+    /**
+     * Called BEFORE a trade is placed. If ANY addon returns false, the trade is blocked.
+     * @returns {boolean|string} true to allow, or a string with rejection reason
+     */
+    onBeforeTrade(candles, price, pos) {
+        for (const addon of this._addons) {
+            if (typeof addon.onBeforeTrade === 'function') {
+                try {
+                    const result = addon.onBeforeTrade(
+                        this._buildCtx(candles, price, {}), pos
+                    );
+                    if (result === false) return 'Blocked by ' + addon.name;
+                    if (typeof result === 'string') return result;
+                } catch (e) {
+                    console.error(`[TradeAddonManager] "${addon.name}" onBeforeTrade error:`, e);
+                }
+            }
+        }
+        return true;
+    },
+
+    /**
+     * Called on every replay frame (every tick).
+     * Addons can check drawdowns, force-close positions, etc.
+     */
+    onEveryTick(candle, equity, balance) {
+        for (const addon of this._addons) {
+            if (typeof addon.onEveryTick === 'function') {
+                try {
+                    addon.onEveryTick(candle, equity, balance);
+                } catch (e) {
+                    console.error(`[TradeAddonManager] "${addon.name}" onEveryTick error:`, e);
+                }
+            }
+        }
     },
 
     isLoaded() { return this._addons.length > 0; },
