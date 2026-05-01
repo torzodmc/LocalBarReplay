@@ -124,6 +124,13 @@ const TradingEngine = {
         }
     },
 
+    /** Force-close all open positions at the given price. */
+    closeAll(price) {
+        for (const pos of [...this.positions]) {
+            this.closePosition(pos.id, price);
+        }
+    },
+
     onTick(candle) {
         const closed = [];
         for (const pos of [...this.positions]) {

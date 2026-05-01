@@ -98,6 +98,7 @@ class MavenEngine {
     // ── Tick handler ──
     tick(candle, equity, balance) {
         if (this.status === 'failed') return;
+        this._lastPrice = candle.close; // cache for breach force-close
 
         const dayNum = Math.floor(candle.time / 86400);
         if (this.currentDay === null || dayNum !== this.currentDay) {
@@ -205,9 +206,8 @@ class MavenEngine {
     breach(reason) {
         this.status = 'failed';
         this.breachReason = reason;
-        // Force close all positions
-        const price = ReplayEngine.getCurrentPrice();
-        if (price) TradingEngine.closeAll(price);
+        // Force close all positions at last known price
+        if (this._lastPrice) TradingEngine.closeAll(this._lastPrice);
         console.warn('[MavenPropFirm] BREACH:', reason);
     }
 

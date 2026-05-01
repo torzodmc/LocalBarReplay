@@ -1,40 +1,67 @@
-# 🧩 Trade Context Addon Guide
+# 🧩 Trade Addon Guide
 
-> **Record anything about your trades — market conditions, indicator values, visual context — as structured data you can export and analyse.**
+> **Extend LocalBarReplay with custom trade logic — from simple data recording to full prop firm challenge simulations.**
 
-LocalBarReplay includes a **Trade Context Addon system** that lets you attach custom data to every trade. When you close a trade, that data travels with it into the history and can be exported as JSON. Completely hidden from normal users — only active if you add a script tag.
+LocalBarReplay includes a **Trade Addon system** that lets developers hook into the trade lifecycle. Addons range from lightweight data recorders to full UI-takeover experiences like the **Maven Prop Firm Simulator**. Enable/disable them from the 📊 Indicators dropdown → 🧩 Trade Addons section.
 
 ---
 
 ## Why Does This Exist?
 
-Discretionary traders (people who read charts visually) often struggle to explain exactly *why* they took a trade. You see the chart, something clicks, and you place the order — but how do you study that later? How do you feed it into a model?
+Discretionary traders often struggle to explain exactly *why* they took a trade. The addon system solves this by letting you:
 
-The addon system solves this by automatically snapshotting the market state at the moment you enter and exit every trade. You define *what* to record. The system handles *when* and *how*.
+- **Record context** — Snapshot market state (indicators, candle anatomy, session) at entry/exit
+- **Enforce rules** — Block trades that violate risk management rules
+- **Simulate environments** — Run prop firm challenges with real drawdown/target rules
+- **Export data** — Download everything as JSON for AI/statistical analysis
 
-**Practical use cases:**
-- Record EMA distances to find the exact "distance" that triggers your entries
-- Feed exported JSON directly into an AI to identify patterns in your decisions
-- Compare what the market looked like on winning vs losing trades
-- Build a statistical model of your own strategy without changing a line of the core app
+**The core app stays lightweight.** All advanced functionality is opt-in via addons.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────┐        trade open / close        ┌──────────────────────┐
-│   Your Addon File    │ ◄──────────────────────────────  │   trading.js (core)  │
-│                      │                                   │                      │
-│  onTradeOpen(ctx)   │ ── returns { your fields } ────►  │  stores with trade   │
-│  onTradeClose(ctx)  │ ── returns { your fields } ────►  │  shows in modal      │
-└─────────────────────┘                                   │  exports in JSON     │
-                                                          └──────────────────────┘
+┌─────────────────────┐     lifecycle hooks     ┌──────────────────────┐
+│   Your Addon File    │ ◄──────────────────────  │   trading.js (core)  │
+│                      │                          │                      │
+│  onTradeOpen(ctx)    │ ── record data ────────► │  stores with trade   │
+│  onTradeClose(ctx)   │ ── record data ────────► │  shows in modal      │
+│  onBeforeTrade(ctx)  │ ── return false ───────► │  blocks the trade    │
+│  onEveryTick(candle) │ ── check rules ────────► │  force close etc.    │
+│  onActivate()        │ ── inject UI ──────────► │                      │
+│  onDeactivate()      │ ── restore UI ─────────► │                      │
+└─────────────────────┘                          └──────────────────────┘
 ```
 
-- The **core** (`trading.js`) always tracks: side, lots, leverage, entry/exit price, TP/SL, MFE, MAE, duration
-- Your **addon** adds any extra fields you want — the core doesn't care what they are
-- Multiple addons can be loaded simultaneously — each gets its own named section in the detail modal and the JSON export
+- The **core** (`trading.js`) handles: trade lifecycle, P&L, MFE/MAE, TP/SL, history
+- **Addons** add behaviour on top — recording, rule enforcement, UI changes
+- Multiple addons can be loaded simultaneously
+
+---
+
+## Available Hooks
+
+### Data Recording Hooks
+
+| Hook | When it fires | What to return |
+|---|---|---|
+| `onTradeOpen(ctx)` | Trade is placed | Object of fields to record |
+| `onTradeClose(ctx, openData)` | Trade is closed | Object of fields to record |
+
+### Control Hooks
+
+| Hook | When it fires | What to return |
+|---|---|---|
+| `onBeforeTrade(ctx, pos)` | Before trade is created | `true` to allow, `false` or string to block |
+| `onEveryTick(candle, equity, balance)` | Every replay frame | Nothing (perform side effects) |
+
+### Lifecycle Hooks
+
+| Hook | When it fires | Purpose |
+|---|---|---|
+| `onActivate()` | Addon is enabled (loaded) | Inject custom UI, initialize state |
+| `onDeactivate()` | Addon is disabled (unloaded) | Clean up UI, restore defaults |
 
 ---
 
@@ -47,6 +74,7 @@ The addon system solves this by automatically snapshotting the market state at t
 
 LocalBarReplay.registerTradeAddon({
     name: 'My Addon',
+    _sourcePath: document.currentScript?.src,  // required for dynamic unloading
 
     onTradeOpen(ctx) {
         return {
@@ -63,31 +91,25 @@ LocalBarReplay.registerTradeAddon({
 });
 ```
 
-### 2. Add the script tag to `index.html`
+### 2. Register it in the addon selector
 
-Add this line **after** `tradeaddons.js` and before `app.js`:
+Add a checkbox entry in `index.html` inside `#addon-list`:
 
 ```html
-<!-- Addon system -->
-<script src="js/tradeaddons.js"></script>
-
-<!-- Your addon (add this line) -->
-<script src="addons/my_addon.js"></script>
-
-<script src="js/app.js"></script>
+<label class="addon-toggle">
+  <input type="checkbox" data-addon="addons/my_addon.js"> My Addon
+</label>
 ```
 
 ### 3. Trade normally
 
-Open trades as normal. When you close one, click **Details ▸** in the History panel to see your addon's data. Hit **⬇ Export** to download everything as JSON.
-
-> **For normal users:** If no addon script tags are present, the system is completely invisible — the addon manager loads but does nothing.
+Enable it from the 📊 Indicators dropdown, then trade as normal. Click **Details ▸** on any closed trade to see your addon data. Hit **⬇ Export** to download as JSON.
 
 ---
 
 ## The `ctx` Object
 
-Your `onTradeOpen` and `onTradeClose` functions receive a `ctx` (context) object. This is a live snapshot of the chart at the moment the trade opened or closed.
+Your `onTradeOpen`, `onTradeClose`, and `onBeforeTrade` functions receive a `ctx` (context) object — a live snapshot of the chart.
 
 ### Price & Candle
 
@@ -95,213 +117,175 @@ Your `onTradeOpen` and `onTradeClose` functions receive a `ctx` (context) object
 |---|---|---|
 | `ctx.price` | `number` | Price at trade open/close |
 | `ctx.candle` | `object` | Current candle `{open, high, low, close, volume, time}` |
-| `ctx.history` | `array` | All candles up to this moment (most recent last) |
+| `ctx.history` | `array` | All candles up to this moment |
 
 ### Helper Methods
 
-#### `ctx.ema(period)` → `number | null`
-Get the current EMA value for any period.
-```js
-const ema4 = ctx.ema(4);
-const ema21 = ctx.ema(21);
-```
-
-#### `ctx.sma(period)` → `number | null`
-Same as above for SMA.
-
-#### `ctx.rsi(period)` → `number | null`
-Current RSI value.
-```js
-const rsi = ctx.rsi(14); // → 62.4
-```
-
-#### `ctx.atr(period)` → `number | null`
-Current ATR (Average True Range).
-```js
-const atr = ctx.atr(14);
-```
-
-#### `ctx.priceInRange(lookback)` → `number`
-Where is price in the last N candles' range? Returns 0–100.
-- `0` = at the bottom of the range
-- `100` = at the top
-- `50` = dead middle
-```js
-const pct = ctx.priceInRange(50); // → 73.2
-```
-
-#### `ctx.prevCandles(n)` → `array`
-Get the last N completed candles (excludes the current one).
-```js
-const last5 = ctx.prevCandles(5);
-```
-
-#### `ctx.candlesSinceEMATouch(period)` → `number | null`
-How many candles ago did price last touch (cross through) this EMA?
-```js
-const bars = ctx.candlesSinceEMATouch(4); // → 3
-```
-
-#### `ctx.slope(indicatorFn, period, lookback)` → `number | null`
-How much has an indicator moved over the last N candles?
-```js
-// EMA(4) change over last 3 candles
-const slope = ctx.slope((d, p) => Indicators.ema(d, p), 4, 3);
-```
+| Method | Returns | Description |
+|---|---|---|
+| `ctx.ema(period)` | `number` | Current EMA value |
+| `ctx.sma(period)` | `number` | Current SMA value |
+| `ctx.rsi(period)` | `number` | Current RSI value |
+| `ctx.atr(period)` | `number` | Current ATR |
+| `ctx.priceInRange(lookback)` | `0-100` | Price position in N-candle range |
+| `ctx.prevCandles(n)` | `array` | Last N completed candles |
+| `ctx.candlesSinceEMATouch(period)` | `number` | Bars since EMA was touched |
+| `ctx.slope(indicatorFn, period, lookback)` | `number` | Indicator change over N bars |
 
 ---
 
-## The `openData` Argument
+## Addon Types
 
-`onTradeClose` receives a second argument: `openData`. This is exactly what your `onTradeOpen` returned, so you can compare entry and exit conditions:
+### Type 1: Data Recorders (Simple)
 
-```js
-onTradeClose(ctx, openData) {
-    const rsiNow = ctx.rsi(14);
-    const rsiAtEntry = openData?.rsi_at_entry;
-    return {
-        rsi_at_exit: rsiNow,
-        rsi_change: rsiNow !== null && rsiAtEntry !== null
-            ? +(rsiNow - rsiAtEntry).toFixed(2)
-            : null,
-    };
-}
-```
+Record market state at trade open/close. No UI changes, no trade blocking.
 
----
-
-## What to Return
-
-Return any flat object with any keys and values you want recorded. Numbers, strings, booleans — all fine. Nested objects are supported but will be stringified in the detail modal display.
+**Examples:** `full_trade_context.js`, `example_ema_context.js`
 
 ```js
-onTradeOpen(ctx) {
-    return {
-        // numbers
-        ema4: ctx.ema(4),
-        ema4_dist_pct: +(((ctx.price - ctx.ema(4)) / ctx.ema(4)) * 100).toFixed(4),
-        // booleans
-        above_ema21: ctx.price > ctx.ema(21),
-        // strings
-        session: ctx.candle.time % 86400 < 43200 ? 'AM' : 'PM',
-        // derived
-        rsi_zone: ctx.rsi(14) > 70 ? 'overbought' : ctx.rsi(14) < 30 ? 'oversold' : 'neutral',
-    };
-}
+LocalBarReplay.registerTradeAddon({
+    name: 'My Recorder',
+    _sourcePath: document.currentScript?.src,
+    onTradeOpen(ctx) { return { rsi: ctx.rsi(14) }; },
+    onTradeClose(ctx) { return { rsi: ctx.rsi(14) }; },
+});
 ```
 
----
+### Type 2: Rule Enforcers (Advanced)
 
-## Viewing the Data
+Use `onBeforeTrade` to block trades and `onEveryTick` to monitor conditions.
 
-After placing and closing trades:
+```js
+LocalBarReplay.registerTradeAddon({
+    name: 'Max Risk Guard',
+    _sourcePath: document.currentScript?.src,
 
-1. Look at the **History** section in the trading panel
-2. Click **Details ▸** on any trade card
-3. The detail modal shows:
-   - **Trade Summary** — core fields (price, P&L, MFE, MAE, duration)
-   - **Your Addon Name — at Open** — everything your `onTradeOpen` returned
-   - **Your Addon Name — at Close** — everything your `onTradeClose` returned
+    onBeforeTrade(ctx, pos) {
+        // Block trades with no stop loss
+        if (!pos.sl) return 'Stop loss required!';
+        return true;
+    },
 
-To export:
-- **Export This Trade** (in the detail modal) — downloads that single trade as JSON
-- **⬇ Export** (in the History header) — downloads all closed trades as JSON
+    onEveryTick(candle, equity, balance) {
+        // Force close everything if equity drops below threshold
+        if (equity < balance * 0.95) {
+            TradingEngine.closeAll(candle.close);
+        }
+    },
+});
+```
+
+### Type 3: UI Takeover (Full Experience)
+
+Use `onActivate`/`onDeactivate` to completely transform the interface. The **Maven Prop Firm** addon is an example of this.
+
+```js
+let _origHTML = null;
+
+LocalBarReplay.registerTradeAddon({
+    name: 'My Experience',
+    _sourcePath: document.currentScript?.src,
+
+    onActivate() {
+        const el = document.getElementById('account-info');
+        _origHTML = el.innerHTML;
+        el.innerHTML = '<div>My Custom HUD</div>';
+        document.body.classList.add('my-addon-active');
+    },
+
+    onDeactivate() {
+        const el = document.getElementById('account-info');
+        if (_origHTML) el.innerHTML = _origHTML;
+        document.body.classList.remove('my-addon-active');
+    },
+
+    onEveryTick(candle, equity, balance) {
+        // Update your custom HUD every frame
+    },
+});
+```
 
 ---
 
 ## Included Addons
 
-### `addons/full_trade_context.js`
+### 🏢 `addons/maven_prop_firm.js` — Maven Prop Firm Simulator
 
-A comprehensive market snapshot recorder. Records at every trade open and close:
+Simulates the full Maven Trading prop firm challenge experience. Supports all 4 account types:
 
-| Field | Description |
-|---|---|
-| `datetime` | Human-readable timestamp |
-| `dayOfWeek`, `hourOfDay` | Time context |
-| `timeframe` | Active chart timeframe |
-| `price` | Entry/exit price |
-| `ema4`, `ema4Distance`, `ema4DistancePct` | EMA(4) proximity |
-| `ema4Slope` | EMA(4) direction over 3 candles |
-| `ema4TouchCandles` | Bars since price last touched EMA(4) |
-| `ema12`, `ema26`, `sma20`, `sma50` | All active indicators |
-| `rsi`, `macdLine`, `macdSignal`, `macdHistogram` | Momentum |
-| `bbUpper/Middle/Lower`, `bbWidth`, `bbPosition` | Bands |
-| `atr14` | Volatility |
-| `trendDirection` | `up` / `down` / `sideways` (SMA20 slope) |
-| `priceInRange50` | Price percentile in 50-candle range |
-| `candleBodyRatio`, `wickRatio`, `gapFromPrevClose` | Candle anatomy |
-| `volumeRatio` | Volume vs 20-candle average |
+| Plan | Phases | Daily DD | Max DD | Profit Target |
+|---|---|---|---|---|
+| **1-Step** | 1 phase → Funded | 3% (equity) | 5% (trailing) | 8% |
+| **2-Step** | 2 phases → Funded | 4% (equity) | 8% (static) | 8% → 5% |
+| **3-Step** | 3 phases → Funded | 2% (equity) | 3% (static) | 3% → 3% → 3% |
+| **Instant** | Direct Funded | 2% (equity) | 3% (trailing) | None |
 
-To enable, add to `index.html`:
-```html
-<script src="addons/full_trade_context.js"></script>
-```
+**Features:**
+- Takes over the account section with a live HUD (progress bars, drawdown meters, profitable day dots)
+- Enforces daily drawdown, max drawdown, and profit targets
+- Tracks profitable trading days (≥0.5% of initial balance)
+- Instant Funding mode includes consistency score and max floating loss checks
+- Phase transitions (Phase 1 → Phase 2 → Funded)
+- Breach detection with clear reason display
+- Restart challenge button
 
-### `addons/example_ema_context.js`
+### 📊 `addons/full_trade_context.js` — Full Trade Context
 
-A lighter addon focused specifically on EMA confluence analysis — EMA(4/9/21/50) distances, stack alignment (bullish/bearish ordering), slope, and RSI. Good starting template to copy and modify.
+Records ~30 technical fields at entry and exit including EMAs, RSI, MACD, ATR, Bollinger Bands, candle anatomy, volume ratios, and trend direction.
+
+### 📈 `addons/example_ema_context.js` — EMA Strategy Context
+
+Lightweight addon focused on EMA confluence — distances to EMA(4/9/21/50), stack alignment, and RSI.
 
 ---
 
 ## Multiple Addons
 
-You can load as many addons as you want. Each appears as its own section in the detail modal:
-
-```html
-<script src="addons/full_trade_context.js"></script>
-<script src="addons/my_session_tracker.js"></script>
-<script src="addons/my_pattern_detector.js"></script>
-```
-
-The exported JSON will contain a key per addon:
+You can enable as many addons as you want. Each appears as its own section in the trade detail modal and JSON export:
 
 ```json
 {
   "addonData": {
-    "Full Trade Context": {
-      "ema4Distance": -12.4,
-      "rsi": 58.2,
-      "_close": { "ema4Distance": 3.1, "rsi": 44.7 }
-    },
-    "My Session Tracker": {
-      "session": "London",
-      "_close": { "session": "NY" }
-    }
+    "Full Trade Context": { "ema4Distance": -12.4, "rsi": 58.2 },
+    "My Session Tracker": { "session": "London" }
   }
 }
 ```
 
+> **Note:** UI-takeover addons (like Maven Prop Firm) modify the sidebar. Running multiple UI-takeover addons simultaneously may conflict. Stick to one at a time.
+
 ---
 
-## Creating Your Own Addon — Template
+## Creating Your Own Addon — Full Template
 
 ```js
 /**
- * My Addon — [describe what it records]
- *
- * To enable: <script src="addons/my_addon.js"></script>
+ * My Addon — [what it does]
+ * To enable: check it in Indicators → 🧩 Trade Addons
  */
 
 LocalBarReplay.registerTradeAddon({
     name: 'My Addon',
     version: '1.0',
+    _sourcePath: document.currentScript?.src,
 
-    onTradeOpen(ctx) {
-        // ctx is fully available here
-        // Return any object — these fields are recorded with the trade
-        return {
-            // your fields here
-        };
-    },
+    // Called when addon is loaded
+    onActivate() {},
 
-    onTradeClose(ctx, openData) {
-        // openData is what you returned from onTradeOpen
-        // ctx reflects market state at exit
-        return {
-            // your fields here
-        };
-    },
+    // Called when addon is unloaded
+    onDeactivate() {},
+
+    // Called before every trade — return false to block
+    onBeforeTrade(ctx, pos) { return true; },
+
+    // Called on every replay frame
+    onEveryTick(candle, equity, balance) {},
+
+    // Record data at trade open
+    onTradeOpen(ctx) { return {}; },
+
+    // Record data at trade close
+    onTradeClose(ctx, openData) { return {}; },
 });
 ```
 
@@ -310,19 +294,19 @@ LocalBarReplay.registerTradeAddon({
 ## FAQ
 
 **Q: Does this affect normal users who just open index.html?**
-No. Without an addon script tag, `TradeAddonManager` loads but stays dormant. Zero extra UI, zero extra computation.
+No. Without any addon enabled, the system is completely invisible — zero extra UI, zero computation.
 
 **Q: Will this slow down the replay?**
-Minimally. Context is only computed when a trade is opened or closed, not on every tick.
+Data recorders compute only on trade open/close. Rule enforcers and `onEveryTick` hooks run every frame but are lightweight. The Maven Prop Firm addon updates its HUD every tick with negligible overhead.
 
-**Q: Can I access raw candle data in my addon?**
-Yes. `ctx.history` is the full array of all candles up to that point. `ctx.candle` is the current one.
-
-**Q: Can I compute my own custom indicator?**
-Yes — `ctx.history` gives you the raw OHLCV array. Compute whatever you want on it.
-
-**Q: Where is the data stored?**
-In memory only (in the browser tab). Use **⬇ Export** to download it as JSON before refreshing.
+**Q: Can I access raw candle data?**
+Yes. `ctx.history` is the full candle array. `ctx.candle` is the current one.
 
 **Q: Can I use the Indicators module directly?**
-Yes. Inside your addon, `Indicators.ema(ctx.history, 9)` works — but prefer the `ctx.ema(9)` shorthand for cleanliness.
+Yes. `Indicators.ema(ctx.history, 9)` works inside addons — but prefer `ctx.ema(9)` for cleanliness.
+
+**Q: Can an addon modify TradingEngine state?**
+Yes. `TradingEngine.balance`, `TradingEngine.positions`, `TradingEngine.closeAll(price)` are all accessible. The Maven Prop Firm addon uses this to set account size and force-close on breach.
+
+**Q: Where is the data stored?**
+In memory only. Use **⬇ Export** to download as JSON before refreshing. The Maven Prop Firm addon stores challenge preferences in localStorage.
