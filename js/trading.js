@@ -180,9 +180,10 @@ const TradingEngine = {
         const balEl = el('acct-balance'), eqEl = el('acct-equity'), pnlEl = el('acct-pnl');
         const trEl = el('acct-trades'), wrEl = el('acct-winrate');
 
+        const totalPnl = equity - this.startingBalance;
         if (balEl) balEl.textContent = fmt(this.balance);
         if (eqEl) eqEl.textContent = fmt(equity);
-        if (pnlEl) { pnlEl.textContent = fmt(unrealizedPnl); pnlEl.style.color = unrealizedPnl >= 0 ? 'var(--green)' : 'var(--red)'; }
+        if (pnlEl) { pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + fmt(totalPnl); pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)'; }
         const total = this.history.length;
         if (trEl) trEl.textContent = total;
         if (wrEl) {
