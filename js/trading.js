@@ -117,6 +117,11 @@ const TradingEngine = {
     onTick(candle) {
         const closed = [];
         for (const pos of [...this.positions]) {
+            // Skip TP/SL check for positions opened on this exact frame —
+            // otherwise a trade placed while paused gets instantly cancelled
+            // if TP/SL falls within the current candle's high/low range.
+            if (pos.openReplayIndex === ReplayEngine.replayIndex) continue;
+
             if (pos.tp !== null) {
                 if ((pos.side === 'buy' && candle.high >= pos.tp) || (pos.side === 'sell' && candle.low <= pos.tp)) {
                     this.closePosition(pos.id, pos.tp); closed.push(pos.id); continue;
@@ -137,6 +142,7 @@ const TradingEngine = {
         if (this.positions.length > 0 || closed.length > 0) this.updateUI();
         return closed;
     },
+
 
     updateTPSL(posId, field, value) {
         const pos = this.positions.find(p => p.id === posId);
