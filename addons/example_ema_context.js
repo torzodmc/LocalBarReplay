@@ -13,6 +13,7 @@
 LocalBarReplay.registerTradeAddon({
     name: 'EMA Strategy Context',
     version: '1.0',
+    _sourcePath: document.currentScript?.src,
 
     onTradeOpen(ctx) {
         const ema4 = ctx.ema(4);

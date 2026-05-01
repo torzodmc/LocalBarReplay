@@ -351,8 +351,8 @@
         let lots = usdt > 0 && price > 0 ? usdt / price : (parseFloat(tradeLots.value) || 0.1);
         if (usdt > 0) tradeLots.value = lots.toFixed(4);
         const lev = parseInt(tradeLeverage.value) || 10;
-        const tp = parseFloat(tradeTP.value) || null;
-        const sl = parseFloat(tradeSL.value) || null;
+        const tpV = parseFloat(tradeTP.value); const tp = isNaN(tpV) ? null : tpV;
+        const slV = parseFloat(tradeSL.value); const sl = isNaN(slV) ? null : slV;
         TradingEngine.openPosition(currentSide, lots, lev, price, tp, sl, currentSymbol);
         tradeTP.value = ''; tradeSL.value = ''; tradeUSDT.value = '';
         // Instant fill: force render so position lines appear even when paused
@@ -422,6 +422,44 @@
         } catch (e) { }
     }
 
+    // ─── Addon selector ───
+    const _loadedAddonScripts = {}; // path → <script> element
+
+    function initAddons() {
+        const saved = JSON.parse(localStorage.getItem('lbr_addons') || '{}');
+        document.querySelectorAll('#addon-list input[data-addon]').forEach(cb => {
+            const path = cb.dataset.addon;
+            if (saved[path]) { cb.checked = true; _loadAddon(path); }
+            cb.addEventListener('change', () => {
+                if (cb.checked) _loadAddon(path);
+                else _unloadAddon(path);
+                const s = JSON.parse(localStorage.getItem('lbr_addons') || '{}');
+                s[path] = cb.checked;
+                localStorage.setItem('lbr_addons', JSON.stringify(s));
+            });
+        });
+    }
+
+    function _loadAddon(path) {
+        if (_loadedAddonScripts[path]) return; // already loaded
+        const script = document.createElement('script');
+        script.src = path + '?v=' + Date.now(); // bust cache
+        script.dataset.addonPath = path;
+        document.body.appendChild(script);
+        _loadedAddonScripts[path] = script;
+    }
+
+    function _unloadAddon(path) {
+        const script = _loadedAddonScripts[path];
+        if (script) { script.remove(); delete _loadedAddonScripts[path]; }
+        // Remove from manager (page reload truly clears it, but unregister for current session)
+        if (typeof TradeAddonManager !== 'undefined') {
+            TradeAddonManager._addons = TradeAddonManager._addons.filter(
+                a => !a._sourcePath || !String(a._sourcePath).includes(path.split('/').pop())
+            );
+        }
+    }
+
     // ─── Boot ───
     function boot() {
         setDefaultDates();
@@ -433,6 +471,7 @@
         ReplayEngine.indicatorState = readIndicatorState();
         ChartManager.params = readIndicatorParams();
         TradingEngine.updateUI();
+        initAddons();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

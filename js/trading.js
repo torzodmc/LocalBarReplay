@@ -29,7 +29,7 @@ const TradingEngine = {
     // ═══════════════════════════════════════════════════════
 
     openPosition(side, lots, leverage, entryPrice, tp, sl, symbol) {
-        const candles = ChartManager._lastCandles;
+        const candles = ChartManager._lastCandles || [];
 
         const pos = {
             id: this.nextId++, side, lots, leverage, entryPrice,
@@ -73,7 +73,7 @@ const TradingEngine = {
 
             // Run addon onClose hooks
             if (typeof TradeAddonManager !== 'undefined') {
-                const candles = ChartManager._lastCandles;
+                const candles = ChartManager._lastCandles || [];
                 const closeAddon = TradeAddonManager.onClose(candles, exitPrice, {}, pos.addonData);
                 // Merge close addon data into each addon's entry
                 for (const [name, data] of Object.entries(closeAddon)) {

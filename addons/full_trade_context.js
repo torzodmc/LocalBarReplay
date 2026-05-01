@@ -21,6 +21,7 @@
 LocalBarReplay.registerTradeAddon({
     name: 'Full Trade Context',
     version: '1.0',
+    _sourcePath: document.currentScript?.src,
 
     _capture(ctx) {
         const candles = ctx.history;
