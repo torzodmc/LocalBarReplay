@@ -384,6 +384,20 @@ LocalBarReplay.registerTradeAddon({
         if (acctSection) _origAccountHTML = acctSection.innerHTML;
         document.body.classList.add('prop-firm-active');
 
+        // Lock leverage to 2x (Maven crypto), hide USDT, enforce min 0.01 lots
+        const levSelect = document.getElementById('trade-leverage');
+        if (levSelect) {
+            levSelect.value = '2';
+            levSelect.disabled = true;
+            levSelect.title = 'Maven: Crypto leverage locked to 2×';
+        }
+        const usdtInput = document.getElementById('trade-usdt');
+        const sizeOr = usdtInput?.previousElementSibling; // the "or" span
+        if (usdtInput) usdtInput.style.display = 'none';
+        if (sizeOr) sizeOr.style.display = 'none';
+        const lotsInput = document.getElementById('trade-lots');
+        if (lotsInput) { lotsInput.min = '0.01'; lotsInput.step = '0.01'; }
+
         showPropFirmSetup((planId, size) => {
             _mavenEngine = new MavenEngine(planId, size);
             renderPropFirmHUD(_mavenEngine);
@@ -403,6 +417,14 @@ LocalBarReplay.registerTradeAddon({
         if (acctSection && _origAccountHTML) acctSection.innerHTML = _origAccountHTML;
         _mavenEngine = null;
 
+        // Restore leverage, USDT, lots
+        const levSelect = document.getElementById('trade-leverage');
+        if (levSelect) { levSelect.disabled = false; levSelect.value = '10'; levSelect.title = ''; }
+        const usdtInput = document.getElementById('trade-usdt');
+        const sizeOr = usdtInput?.previousElementSibling;
+        if (usdtInput) usdtInput.style.display = '';
+        if (sizeOr) sizeOr.style.display = '';
+
         TradingEngine.balance = 10000;
         TradingEngine.startingBalance = 10000;
         TradingEngine.positions = [];
@@ -414,8 +436,15 @@ LocalBarReplay.registerTradeAddon({
     onBeforeTrade(ctx, pos) {
         if (!_mavenEngine) return true;
         if (_mavenEngine.status === 'failed') return 'Challenge failed — trading is locked.';
-        if (_mavenEngine.status === 'active' || _mavenEngine.status === 'funded') return true;
-        return 'Challenge not started.';
+        if (_mavenEngine.status !== 'active' && _mavenEngine.status !== 'funded') return 'Challenge not started.';
+        // Enforce Maven crypto leverage
+        if (pos.leverage && pos.leverage !== 2) {
+            // Silently correct it
+            const levSelect = document.getElementById('trade-leverage');
+            if (levSelect) levSelect.value = '2';
+            return 'Maven crypto: leverage must be 2×.';
+        }
+        return true;
     },
 
     onEveryTick(candle, equity, balance) {
