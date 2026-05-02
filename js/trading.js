@@ -139,11 +139,14 @@ const TradingEngine = {
             // Skip TP/SL check for positions opened on this exact frame —
             // otherwise a trade placed while paused gets instantly cancelled
             // if TP/SL falls within the current candle's high/low range.
-            if (ReplayEngine._subMode) {
-                // In sub-candle mode, compare base indices (replayIndex stays same across sub-ticks)
-                if (pos._openBaseIdx >= 0 && pos._openBaseIdx === ReplayEngine._baseIdx) continue;
-            } else {
-                if (pos.openReplayIndex === ReplayEngine.replayIndex) continue;
+            // EXCEPTION: In open-only mode, the user only saw the open price,
+            // so the candle's wicks are unseen price action → DO check TP/SL.
+            if (!ReplayEngine.openOnly) {
+                if (ReplayEngine._subMode) {
+                    if (pos._openBaseIdx >= 0 && pos._openBaseIdx === ReplayEngine._baseIdx) continue;
+                } else {
+                    if (pos.openReplayIndex === ReplayEngine.replayIndex) continue;
+                }
             }
 
             if (pos.tp !== null) {
