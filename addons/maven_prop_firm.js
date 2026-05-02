@@ -164,6 +164,18 @@ class MavenEngine {
     _checkPhaseCompletion() {
         const rules = this.currentRules;
         if (!rules.profitTarget) return; // funded phase has no target
+
+        // Evaluate the CURRENT day too (not just past days that transitioned).
+        // Without this, the last trading day is never counted until a new day starts.
+        if (this.currentDay !== null) {
+            const todayPnl = this.dailyPnlMap[this.currentDay] || 0;
+            const threshold = this.initialBalance * (rules.dayThreshold || 0.005);
+            if (todayPnl >= threshold) {
+                this.profitableDays.add(this.currentDay);
+            }
+            if (todayPnl > this.biggestWinningDay) this.biggestWinningDay = todayPnl;
+        }
+
         if (this.profitPct >= rules.profitTarget * 100 && this.profitableDays.size >= rules.minDays) {
             this.advancePhase();
         }
@@ -251,17 +263,17 @@ function renderPropFirmHUD(engine) {
     const profitPct = engine.profitPct;
     const targetPct = rules.profitTarget ? (rules.profitTarget * 100) : null;
 
-    // Daily DD
-    const dailyUsed = ((engine.dailyRefLevel - equity) / engine.dailyRefLevel) * 100;
+    // Daily DD — clamp to 0 so it never shows negative when equity > ref level
+    const dailyUsed = Math.max(0, ((engine.dailyRefLevel - equity) / engine.dailyRefLevel) * 100);
     const dailyMax = rules.dailyDD * 100;
     const dailyPctUsed = Math.max(0, Math.min(100, (dailyUsed / dailyMax) * 100));
 
-    // Max DD
+    // Max DD — clamp to 0 so it never shows negative
     let maxDDUsed, maxDDMax;
     if (rules.maxDDType === 'trailing') {
-        maxDDUsed = ((engine.highestEquity - equity) / engine.highestEquity) * 100;
+        maxDDUsed = Math.max(0, ((engine.highestEquity - equity) / engine.highestEquity) * 100);
     } else {
-        maxDDUsed = ((engine.initialBalance - equity) / engine.initialBalance) * 100;
+        maxDDUsed = Math.max(0, ((engine.initialBalance - equity) / engine.initialBalance) * 100);
     }
     maxDDMax = rules.maxDD * 100;
     const maxDDPctUsed = Math.max(0, Math.min(100, (maxDDUsed / maxDDMax) * 100));
@@ -300,7 +312,7 @@ function renderPropFirmHUD(engine) {
         // Max DD
         html += `
         <div class="pf-stat">
-            <div class="pf-stat-label">Max DD (${rules.maxDDType}) <span>${Math.max(0, maxDDUsed).toFixed(2)}% / ${maxDDMax}%</span></div>
+            <div class="pf-stat-label">Max DD (${rules.maxDDType}) <span>${maxDDUsed.toFixed(2)}% / ${maxDDMax}%</span></div>
             <div class="pf-bar"><div class="pf-bar-fill pf-bar-dd ${maxDDPctUsed > 75 ? 'pf-bar-danger' : ''}" style="width:${maxDDPctUsed}%"></div></div>
         </div>`;
         // Profitable days
@@ -457,12 +469,10 @@ LocalBarReplay.registerTradeAddon({
 
     onTradeClose(ctx, openData) {
         if (!_mavenEngine) return null;
-        // Get the last closed trade's P&L
-        const hist = TradingEngine.history;
-        if (hist.length > 0) {
-            const last = hist[hist.length - 1];
-            _mavenEngine.onTradeClose(last.pnl);
-        }
+        // Use closedPnl from context (passed by trading engine) — NOT from
+        // TradingEngine.history, which hasn't been updated yet when this fires.
+        const pnl = ctx.closedPnl ?? 0;
+        _mavenEngine.onTradeClose(pnl);
         renderPropFirmHUD(_mavenEngine);
         return null;
     },

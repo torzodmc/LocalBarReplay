@@ -49,6 +49,7 @@ const TradingEngine = {
             openTime: Date.now(),
             openReplayIndex: ReplayEngine.replayIndex,
             _openBaseIdx: ReplayEngine._subMode ? ReplayEngine._baseIdx : -1,
+            _justPlaced: true, // skip TP/SL on the frame the trade is opened
             pnl: 0,
             // MFE / MAE tracking (internal)
             _maxPnl: 0,
@@ -85,10 +86,15 @@ const TradingEngine = {
             pos.mae = +pos._minPnl.toFixed(2);
             pos.duration = ReplayEngine.replayIndex - pos.openReplayIndex;
 
-            // Run addon onClose hooks
+            // Update balance BEFORE addon hooks so addons see correct state
+            this.balance += pos.pnl;
+
+            // Run addon onClose hooks (balance is already updated)
             if (typeof TradeAddonManager !== 'undefined') {
                 const candles = ChartManager._lastCandles || [];
-                const closeAddon = TradeAddonManager.onClose(candles, exitPrice, {}, pos.addonData);
+                const closeAddon = TradeAddonManager.onClose(candles, exitPrice,
+                    { closedPnl: pos.pnl, closedSide: pos.side, closedLots: pos.lots },
+                    pos.addonData);
                 // Merge close addon data into each addon's entry
                 for (const [name, data] of Object.entries(closeAddon)) {
                     if (pos.addonData && pos.addonData[name]) {
@@ -100,17 +106,12 @@ const TradingEngine = {
                 }
             }
 
-            this.balance += pos.pnl;
-            const { _maxPnl, _minPnl, ...clean } = pos;
+            const { _maxPnl, _minPnl, _justPlaced, ...clean } = pos;
             this.history.push(clean);
         }
 
         this.positions.splice(idx, 1);
         this.updateUI();
-    },
-
-    closeAll(currentPrice) {
-        while (this.positions.length > 0) this.closePosition(this.positions[0].id, currentPrice);
     },
 
     calcPnL(pos, currentPrice) {
@@ -138,11 +139,17 @@ const TradingEngine = {
     onTick(candle) {
         const closed = [];
         for (const pos of [...this.positions]) {
-            // Skip TP/SL check for positions opened on this exact frame —
-            // otherwise a trade placed while paused gets instantly cancelled
-            // if TP/SL falls within the current candle's high/low range.
-            // EXCEPTION: In open-only mode, the user only saw the open price,
-            // so the candle's wicks are unseen price action → DO check TP/SL.
+            // Skip TP/SL on the EXACT frame the trade was placed.
+            // _justPlaced is set on creation and cleared after the first tick.
+            // This prevents instant TP/SL triggers from the forced _renderFrame
+            // that fires immediately after opening a position.
+            if (pos._justPlaced) {
+                pos._justPlaced = false;
+                continue;
+            }
+
+            // In normal mode (not open-only), also skip if still on the same
+            // candle — the user can already see the full candle's range.
             if (!ReplayEngine.openOnly) {
                 if (ReplayEngine._subMode) {
                     if (pos._openBaseIdx >= 0 && pos._openBaseIdx === ReplayEngine._baseIdx) continue;

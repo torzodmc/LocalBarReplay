@@ -59,6 +59,7 @@ const TradeAddonManager = {
             price,
             candle: candles[candles.length - 1],
             history: candles,
+            closedPnl: builtinContext?.closedPnl ?? null,
             builtinIndicators: builtinContext || {},
             prevCandles(n) { return candles.slice(-n - 1, -1); },
             priceInRange(lookback) {
