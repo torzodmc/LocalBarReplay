@@ -239,6 +239,23 @@ class Bridge:
         """Close all open positions."""
         await self._send_cmd('close_all')
 
+    async def load_data(self, candles: List[dict], *,
+                        symbol: str = '', asset_type: str = 'forex',
+                        timeframe: int = 60) -> dict:
+        """Push candle data directly into the chart — starts replay automatically.
+
+        Args:
+            candles: List of dicts with keys: time (unix), open, high, low, close, volume
+            symbol:  Symbol name shown in UI (e.g. 'EURUSD')
+            asset_type: 'forex' or 'crypto'
+            timeframe: Candle size in minutes (5, 15, 30, 60, 240, 1440 …)
+
+        Returns:
+            dict with 'ok', 'candles' count, 'symbol', 'timeframe'
+        """
+        return await self._request('load_data', candles=candles, symbol=symbol,
+                                   asset_type=asset_type, timeframe=timeframe)
+
     async def modify_trade(self, position_id: int, *,
                            tp: float = None, sl: float = None):
         """Modify TP/SL of an existing position."""

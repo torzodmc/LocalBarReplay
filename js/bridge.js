@@ -153,6 +153,9 @@ const BridgeClient = {
             case 'get_current_price': this._respondCurrentPrice(request_id); break;
             case 'get_replay_state': this._respondReplayState(request_id); break;
 
+            // ── Data Loading ──
+            case 'load_data': this._loadData(msg, request_id); break;
+
             // ── UI Commands ──
             case 'notify': this._showNotify(msg); break;
             case 'log': this._log(msg.message); break;
@@ -339,6 +342,58 @@ const BridgeClient = {
         if (tp !== undefined) TradingEngine.updateTPSL(position_id, 'tp', tp);
         if (sl !== undefined) TradingEngine.updateTPSL(position_id, 'sl', sl);
         this._log(`Modified position #${position_id}`);
+    },
+
+    // ═══════════ DATA LOADING ═══════════
+
+    /**
+     * Called when Python sends: bridge.load_data(candles, symbol, asset_type, timeframe)
+     * Pushes data directly into the replay engine — no CSV or Binance fetch needed.
+     */
+    _loadData(msg, requestId) {
+        const { candles, symbol, asset_type, timeframe } = msg;
+        if (!candles || !candles.length) {
+            this._sendResponse(requestId, { error: 'No candles provided' });
+            return;
+        }
+        try {
+            const tf = parseInt(timeframe) || 60;
+            const assetType = asset_type || 'forex';
+            const sym = symbol || '';
+
+            TradingEngine.setAssetType(assetType);
+            TradingEngine.reset();
+
+            // Update the symbol display in the UI if possible
+            const symEl = document.getElementById('forex-symbol');
+            if (symEl && sym) {
+                // Try to match existing option, else show as custom
+                let found = false;
+                for (const opt of symEl.options) {
+                    if (opt.value === sym) { symEl.value = sym; found = true; break; }
+                }
+                if (!found) {
+                    const opt = document.createElement('option');
+                    opt.value = sym; opt.textContent = sym;
+                    symEl.appendChild(opt);
+                    symEl.value = sym;
+                }
+            }
+
+            // Switch TF selector to match
+            const tfEl = document.getElementById('timeframe');
+            if (tfEl) tfEl.value = String(tf);
+
+            // Load into replay engine and start
+            ReplayEngine.loadData(candles, tf);
+            setTimeout(() => ReplayEngine.play(), 300);
+
+            this._log(`✅ ${sym} loaded: ${candles.length} candles @ ${tf}m (${assetType})`);
+            this._sendResponse(requestId, { ok: true, candles: candles.length, symbol: sym, timeframe: tf });
+        } catch (err) {
+            this._sendResponse(requestId, { error: err.message });
+            this._log(`❌ load_data error: ${err.message}`);
+        }
     },
 
     // ═══════════ DATA RESPONSES ═══════════
