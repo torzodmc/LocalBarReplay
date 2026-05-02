@@ -42,7 +42,7 @@ const MAVEN_PLANS = {
     },
 };
 
-const ACCOUNT_SIZES = [5000, 10000, 25000, 50000, 100000, 200000];
+const ACCOUNT_SIZES = [2000, 5000, 10000, 25000, 50000, 100000, 200000];
 
 // ═══════════════ PROP FIRM ENGINE ═══════════════
 
