@@ -263,9 +263,15 @@ const ReplayEngine = {
         // Use flattened candle for display price, but REAL candle for TP/SL checks
         const displayCandle = visible.length > 0 ? visible[visible.length - 1] : null;
 
-        // Trading engine: use real candle so TP/SL triggers on actual high/low
+        // Build the tick candle for the trading engine:
+        // - high/low from the REAL candle → so TP/SL triggers on actual wicks
+        // - close from the DISPLAY candle → so P&L and addon drawdown checks
+        //   reflect the price the user actually sees (open in open-only mode)
         if (realCandle && TradingEngine.positions.length > 0) {
-            TradingEngine.onTick(realCandle);
+            const tickCandle = this.openOnly
+                ? { ...realCandle, close: displayCandle.close }
+                : realCandle;
+            TradingEngine.onTick(tickCandle);
         }
 
         // Update position lines on chart
