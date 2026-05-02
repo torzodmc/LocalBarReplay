@@ -70,8 +70,10 @@ const TradingEngine = {
         if (idx === -1) return;
         const pos = this.positions[idx];
 
-        // Cancelled: opened and closed on same candle while paused
-        const isCancelled = pos.openReplayIndex === ReplayEngine.replayIndex;
+        // Cancelled: opened and closed on same candle while paused (normal mode only).
+        // In open-only mode, same-candle TP/SL fills are legitimate since
+        // the user only saw the open — the wicks are real unseen price action.
+        const isCancelled = !ReplayEngine.openOnly && pos.openReplayIndex === ReplayEngine.replayIndex;
 
         if (!isCancelled) {
             pos.pnl = this.calcPnL(pos, exitPrice);
