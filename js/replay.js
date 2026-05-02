@@ -241,6 +241,9 @@ const ReplayEngine = {
 
         if (!visible || visible.length === 0) return;
 
+        // Save the real candle (with full OHLC) BEFORE flattening for open-only
+        const realCandle = visible.length > 0 ? { ...visible[visible.length - 1] } : null;
+
         // Open-only mode: flatten the current (last) candle to just its open price
         if (this.openOnly && visible.length > 0) {
             const last = { ...visible[visible.length - 1] };
@@ -257,12 +260,12 @@ const ReplayEngine = {
             ChartManager.mainChart.timeScale().fitContent();
         }
 
-        // Use the visible (possibly open-flattened) candle for trading + UI
+        // Use flattened candle for display price, but REAL candle for TP/SL checks
         const displayCandle = visible.length > 0 ? visible[visible.length - 1] : null;
 
-        // Trading engine: check TP/SL on the displayed candle
-        if (displayCandle && TradingEngine.positions.length > 0) {
-            TradingEngine.onTick(displayCandle);
+        // Trading engine: use real candle so TP/SL triggers on actual high/low
+        if (realCandle && TradingEngine.positions.length > 0) {
+            TradingEngine.onTick(realCandle);
         }
 
         // Update position lines on chart

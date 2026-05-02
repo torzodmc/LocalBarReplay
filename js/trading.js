@@ -43,10 +43,12 @@ const TradingEngine = {
 
         const pos = {
             id: this.nextId++, side, lots, leverage, entryPrice,
-            tp: tp || null, sl: sl || null,
+            tp: (tp !== null && tp !== undefined && !isNaN(tp)) ? tp : null,
+            sl: (sl !== null && sl !== undefined && !isNaN(sl)) ? sl : null,
             symbol: symbol || '',
             openTime: Date.now(),
             openReplayIndex: ReplayEngine.replayIndex,
+            _openBaseIdx: ReplayEngine._subMode ? ReplayEngine._baseIdx : -1,
             pnl: 0,
             // MFE / MAE tracking (internal)
             _maxPnl: 0,
@@ -137,7 +139,12 @@ const TradingEngine = {
             // Skip TP/SL check for positions opened on this exact frame —
             // otherwise a trade placed while paused gets instantly cancelled
             // if TP/SL falls within the current candle's high/low range.
-            if (pos.openReplayIndex === ReplayEngine.replayIndex) continue;
+            if (ReplayEngine._subMode) {
+                // In sub-candle mode, compare base indices (replayIndex stays same across sub-ticks)
+                if (pos._openBaseIdx >= 0 && pos._openBaseIdx === ReplayEngine._baseIdx) continue;
+            } else {
+                if (pos.openReplayIndex === ReplayEngine.replayIndex) continue;
+            }
 
             if (pos.tp !== null) {
                 if ((pos.side === 'buy' && candle.high >= pos.tp) || (pos.side === 'sell' && candle.low <= pos.tp)) {

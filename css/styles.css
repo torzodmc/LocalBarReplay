@@ -1618,3 +1618,13 @@ input[type="range"]::-webkit-slider-thumb {
   border-color: var(--green);
   color: var(--green);
 }
+
+/* ═══════ Trade Value Preview ═══════ */
+.trade-value-preview {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 0 4px;
+  min-height: 16px;
+  letter-spacing: 0.02em;
+}
+.trade-value-preview:empty { display: none; }

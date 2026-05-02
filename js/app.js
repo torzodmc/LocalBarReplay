@@ -338,10 +338,25 @@
         if (e.code === 'Escape' && ChartManager._pickMode) ChartManager.exitPickMode();
     });
 
+    // ─── Trade Value Preview ───
+    const tradeValuePreview = document.getElementById('trade-value-preview');
+    function updateTradeValuePreview() {
+        const price = ReplayEngine.getCurrentPrice();
+        const lots = parseFloat(tradeLots.value) || 0;
+        const lev = parseInt(tradeLeverage.value) || 10;
+        if (!price || lots <= 0) { tradeValuePreview.textContent = ''; return; }
+        const notional = lots * price;
+        const margin = notional / lev;
+        tradeValuePreview.textContent = `≈ $${notional.toLocaleString(undefined, {maximumFractionDigits: 2})} value · $${margin.toLocaleString(undefined, {maximumFractionDigits: 2})} margin`;
+    }
+    tradeLots.addEventListener('input', updateTradeValuePreview);
+    tradeLeverage.addEventListener('change', updateTradeValuePreview);
+
     tradeUSDT.addEventListener('input', () => {
         const usdt = parseFloat(tradeUSDT.value);
         const price = ReplayEngine.getCurrentPrice();
         if (usdt > 0 && price > 0) tradeLots.value = (usdt / price).toFixed(4);
+        updateTradeValuePreview();
     });
 
     btnPlaceTrade.addEventListener('click', () => {
